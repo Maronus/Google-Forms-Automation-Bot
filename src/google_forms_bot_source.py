@@ -640,6 +640,8 @@ def _interactive_menu(options, total, qi):
                     dist[opt] = count
                     remaining -= count
                     typing_mode = False
+                    if remaining == 0:
+                        selected_idx = len(menu_items) - 2
                 else:
                     typed_text = ""
             elif key == 'backspace':
@@ -647,132 +649,26 @@ def _interactive_menu(options, total, qi):
             elif len(key) == 1 and key.isprintable():
                 typed_text += key
 
-def _interactive_text_menu(total, qi):
-    dist = {}
-    remaining = total
+def _text_loop(total, qi, q):
+    answers = [None] * total
     
-    options = []
-    
-    nav_add = "[Add New Answer]"
-    nav_next = "[Next Question]"
-    nav_prev = "[Previous Question]"
-    
-    selected_idx = 0
-    typing_mode = False
-    adding_mode = False
-    typed_text = ""
-    lines_drawn = 0
-    
-    while True:
-        menu_items = list(options) + [nav_add, nav_next, nav_prev]
+    write_count = total
+    if not q["required"]:
+        write_count = ask_int(f"How many responses for this question? (0-{total})", min_val=0, max_val=total)
         
-        out = Text()
-        out.append(f"\n  Distribute text answers ({remaining} users remaining):\n", style=f"bold {BLUE}")
-        
-        for i, opt in enumerate(menu_items):
-            is_nav = (opt in (nav_add, nav_next, nav_prev))
-            can_select_prev = (qi > 1)
-            can_select_next = (remaining == 0)
+    if write_count > 0:
+        console.print()
+        for i in range(write_count):
+            val = ask(f"Response {i + 1}/{write_count}")
+            while not val and q["required"]:
+                msg("Cannot be empty", "warn")
+                val = ask(f"Response {i + 1}/{write_count}")
+            answers[i] = val if val else ""
             
-            if opt == nav_next and not can_select_next:
-                style = "dim"
-            elif opt == nav_prev and not can_select_prev:
-                style = "dim"
-            else:
-                style = f"bold {GREEN}" if i == selected_idx else "white"
-                
-            prefix = "  > " if i == selected_idx else "    "
-            
-            if not is_nav:
-                count_val = dist.get(opt, 0)
-                count_str = f" : {count_val}" if count_val > 0 else ""
-                if i == selected_idx and typing_mode and not adding_mode:
-                    out.append(f"{prefix}{_r(opt)}{count_str}  -- how many? {typed_text}_\n", style=f"bold {GREEN}")
-                else:
-                    out.append(f"{prefix}{_r(opt)}{count_str}\n", style=style)
-            else:
-                if opt == nav_add:
-                    out.append("\n")
-                    if i == selected_idx and adding_mode:
-                        out.append(f"{prefix}Type new answer: {typed_text}_\n", style=f"bold {GREEN}")
-                        continue
-                if opt == nav_next:
-                    out.append("\n")
-                out.append(f"{prefix}{opt}\n", style=style)
-                
-        if lines_drawn > 0:
-            sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
-            sys.stdout.flush()
-            
-        lines_drawn = out.plain.count("\n")
-        console.print(out, end="")
-        
-        key = _getch()
-        if not key: continue
-        
-        if not typing_mode and not adding_mode:
-            if key == 'up':
-                selected_idx = max(0, selected_idx - 1)
-            elif key == 'down':
-                selected_idx = min(len(menu_items) - 1, selected_idx + 1)
-            elif key == 'enter':
-                opt = menu_items[selected_idx]
-                if opt == nav_prev:
-                    if qi > 1:
-                        sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
-                        sys.stdout.flush()
-                        return dist, "prev"
-                elif opt == nav_next:
-                    if remaining == 0:
-                        sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
-                        sys.stdout.flush()
-                        return dist, "next"
-                elif opt == nav_add:
-                    adding_mode = True
-                    typed_text = ""
-                else:
-                    typing_mode = True
-                    typed_text = ""
-                    prev_count = dist.get(opt, 0)
-                    if prev_count > 0:
-                        dist[opt] = 0
-                        remaining += prev_count
-        elif adding_mode:
-            if key == 'enter':
-                if typed_text.strip():
-                    options.append(typed_text.strip())
-                    selected_idx = len(options) - 1
-                    adding_mode = False
-                    # auto enter typing mode for the new option
-                    typing_mode = True
-                    typed_text = ""
-                else:
-                    adding_mode = False
-            elif key == 'backspace':
-                typed_text = typed_text[:-1]
-            elif len(key) == 1 and key.isprintable():
-                typed_text += key
-        elif typing_mode:
-            if key == 'enter':
-                opt = menu_items[selected_idx]
-                if typed_text.lower() == 'all':
-                    count = remaining
-                else:
-                    try:
-                        count = int(typed_text)
-                    except ValueError:
-                        count = -1
-                        
-                if 0 <= count <= remaining:
-                    dist[opt] = count
-                    remaining -= count
-                    typing_mode = False
-                else:
-                    typed_text = ""
-            elif key == 'backspace':
-                typed_text = typed_text[:-1]
-            elif len(key) == 1 and key.isprintable():
-                typed_text += key
+    msg(f"  {write_count} answers recorded", "ok")
+    console.print()
+    action = ask_choice("Action", ["Next Question", "Previous Question"], default="N")
+    return answers, "prev" if action == "P" else "next"
 
 # ─── Live Table Rendering ─────────────────────────────────────────────
 
@@ -863,18 +759,18 @@ def print_live_table(total, answer_lists, form):
         console.print()
 
 
-def _animate_shuffle(total, answer_lists, form):
+def _animate_shuffle(total, response_sets, form):
     import time
     for _ in range(12):
         clear()
         display_banner()
-        fake_lists = {}
-        for q, ans in answer_lists.items():
-            tmp = list(ans)
-            random.shuffle(tmp)
-            fake_lists[q] = tmp
-
-        print_live_table(total, fake_lists, form)
+        random.shuffle(response_sets)
+        
+        table = generate_table(total, form, response_sets=response_sets)
+        if table:
+            console.print(table)
+            console.print()
+            
         t = Text()
         t.append("  - ", style=f"bold {BLUE}")
         t.append("Shuffling all profiles for submission...", style="white")
@@ -920,7 +816,8 @@ def build_answers(form, total):
         action = "next"
 
         if q["type"] in ("paragraph", "short_answer"):
-            dist, action = _interactive_text_menu(total, qi)
+            answers, action = _text_loop(total, qi, q)
+            answer_lists[q_id] = answers
         else:
             options = _get_options_for_q(q)
             if not options:
@@ -944,16 +841,16 @@ def build_answers(form, total):
             qi -= 1
             continue
             
-        # action == "next"
-        # Expand distribution
-        answers = []
-        for answer, count in dist.items():
-            answers.extend([answer] * count)
-        while len(answers) < total:
-            answers.append(None)
-        answers = answers[:total]
-
-        answer_lists[q_id] = answers
+        if action == "next" and q["type"] not in ("paragraph", "short_answer"):
+            # Expand distribution
+            answers = []
+            for answer, count in dist.items():
+                answers.extend([answer] * count)
+            while len(answers) < total:
+                answers.append(None)
+            answers = answers[:total]
+            answer_lists[q_id] = answers
+            
         qi += 1
 
     return answer_lists
@@ -1357,18 +1254,16 @@ def main():
         msg("No responses configured", "err")
         return
 
+    # Generate linked sets before shuffle so animation handles the REAL linked rows
+    response_sets = generate_linked_sets(answer_lists, total)
+
     # 6 — Shuffle animation (right after last question)
-    _animate_shuffle(total, answer_lists, form)
-    clear()
-    display_banner()
-    msg("Profiles shuffled!", "ok")
+    _animate_shuffle(total, response_sets, form)
     console.print()
 
     # 7 — Timer
+    # Notice we don't clear the screen here, so the final shuffled table stays visible above!
     timer_config = configure_timer(total)
-
-    # Generate linked sets before summary to show shuffled order
-    response_sets = generate_linked_sets(answer_lists, total)
 
     # 8 — Pre-submission summary (table + info)
     while True:
