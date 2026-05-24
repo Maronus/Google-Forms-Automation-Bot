@@ -21,17 +21,26 @@ I didn't want any of my colleagues to take the source code, monetize the script,
 - **Arabic / RTL Support:** Fully supports right-to-left languages (Arabic, Hebrew) rendering flawlessly in the terminal.
 - **Zero Config:** Automatically installs required dependencies (`requests`, `rich`, `arabic-reshaper`, `python-bidi`) on first run.
 
-## How to Run
+## How to Download and Run (One Command)
 
-1. Download the script:
-   ```bash
-   curl -O https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/google_forms_bot.py
-   ```
-2. Run it using Python (Windows, Linux, MacOS, Termux):
-   ```bash
-   python google_forms_bot.py
-   ```
-3. Paste your Google Form URL (must be public) and follow the CLI instructions!
+Copy and paste the command for your operating system to instantly download and run the script:
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/google_forms_bot.py -OutFile google_forms_bot.py ; python google_forms_bot.py
+```
+
+**Windows (Command Prompt / CMD):**
+```cmd
+curl -O https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/google_forms_bot.py && python google_forms_bot.py
+```
+
+**Linux / macOS / Termux:**
+```bash
+curl -sO https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/google_forms_bot.py && python3 google_forms_bot.py
+```
+
+After it launches, just paste your Google Form URL (must be public) and follow the CLI instructions!
 
 ## For Developers
 
