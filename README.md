@@ -19,6 +19,13 @@ I didn't want any of my colleagues to take the source code, monetize the script,
 
   ![Linked Distribution System Visualization](linked_distribution.gif)
 
+  **How it works:**
+  1. **Create Virtual Users:** The script reserves slots for the total number of responses you want.
+  2. **Distribute Question 1:** Answers are assigned top-to-bottom.
+  3. **Distribute Question 2:** The next set of answers aligns with the previous ones, so User 1's profile stays perfectly consistent.
+  4. **The Final Shuffle:** Once all profiles are built, the script shuffles them like a deck of cards. 
+  5. **Submission:** The responses are sent in this new randomized order so Google doesn't detect a sequential pattern.
+
 - **Customizable Randomness:** After all virtual users are built, the script shuffles the submission order so that the timestamps and response patterns look entirely human.
 - **Smart Timers:** Supports regular or irregular delay timers between responses to bypass rate limits and mimic real human typing speeds.
 - **RTL Support:** Fully supports right-to-left languages (Arabic, Hebrew) rendering flawlessly in the terminal.
