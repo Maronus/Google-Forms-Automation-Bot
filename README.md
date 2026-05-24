@@ -18,8 +18,7 @@ I didn't want any of my colleagues to take the source code, monetize the script,
 - **Linked Distribution System:** Creates virtual "users" who maintain coherent answers across multiple questions, ensuring no contradictory responses (e.g. someone saying they don't exercise, but then saying they exercise daily).
 - **Customizable Randomness:** After all virtual users are built, the script shuffles the submission order so that the timestamps and response patterns look entirely human.
 - **Smart Timers:** Supports regular or irregular delay timers between responses to bypass rate limits and mimic real human typing speeds.
-- **Arabic / RTL Support:** Fully supports right-to-left languages (Arabic, Hebrew) rendering flawlessly in the terminal.
-- **Zero Config:** Automatically installs required dependencies (`requests`, `rich`, `arabic-reshaper`, `python-bidi`) on first run.
+- **RTL Support:** Fully supports right-to-left languages (Arabic, Hebrew) rendering flawlessly in the terminal.
 
 ## How to Download and Run (One Command)
 
