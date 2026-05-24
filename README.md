@@ -1,83 +1,24 @@
 # Google Forms Automation Bot (Maronus)
 
-![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Termux-lightgrey)
-
-```text
-    █▄ ▄█ ▄▀▀▀▄ █▀▀▀▄ ▄▀▀▀▄ █▄  █ █   █ ▄▀▀▀ 
-    █ ▀ █ █▀▀▀█ █▀▀█  █   █ █ ▀▄█ █   █  ▀▀▀▄
-    ▀   ▀ ▀   ▀ ▀   ▀  ▀▀▀  ▀   ▀  ▀▀▀   ▀▀▀ 
-    google forms automation  @maronus
-```
-
-A powerful, command-line based Google Forms automation tool that simulates bulk human responses seamlessly. Designed to create logically flawless response data.
-
-## > The Backstory
-I made this project because in school they did not let us see the exam results unless we submit at least 50 responses on a feedback form, and my colleagues were lazy and not helping. Instead of waiting for them, I built this script to automate the process and get past the requirement.
-
-### > Why is there an encrypted version?
-I didn't want any of my colleagues to take the source code, monetize the script, and sell it to other students. Therefore, I built a custom encryption tool to pack the source code into an encrypted payload.
-
-**You can simply download and run the encrypted script:** `google_forms_bot.py`. It runs perfectly in the terminal/CMD or even on your phone using Termux.
-
----
+A minimal, command-line Google Forms automation tool that simulates bulk human responses and bypasses rate limits. Built to quickly bypass "minimum response" requirements in school.
 
 ## Features
-
-### > Linked Distribution System
-Creates virtual "users" who maintain coherent answers across multiple questions, ensuring no contradictory responses (e.g., someone saying they don't exercise, but then saying they exercise daily).
-
-**1. How Maronus Builds Profiles:**
-The script reserves slots for the total number of responses you want. Answers are assigned top-to-bottom so User 1's profile stays perfectly consistent across every question.
-![Linked Profiles](linked_profiles.png)
-
-**2. The Final Submission (Shuffled):**
-Once all profiles are built, the script shuffles the users like a deck of cards. The responses are sent in this new randomized order so Google doesn't detect a sequential pattern, but every single profile remains logically flawless.
-![Linked Submissions](linked_submissions.png)
-
-> **Why is this better than "Classic Random Automation Bots"?**
-> In a standard automation bot, answers are mixed blindly per question. You might end up submitting a response where someone claims they are "Under 18" but hold a "PhD", or they "Don't Exercise" but work out "Daily". The form owner can easily spot these red contradictions and delete your submissions. 
-> 
-> ![Classic Bot Errors](classic_bot.png)
-> 
-> Maronus' **Linked Distribution System** solves this entirely. Every submission is 100% logically flawless.
-
-- **Customizable Randomness:** After all virtual users are built, the script shuffles the submission order so that the timestamps and response patterns look entirely human.
+- **Linked Distribution System:** Creates consistent "Virtual Users" to ensure logically flawless submissions without contradictions.
 - **Human-like Delays:** Supports regular or irregular delay timers between responses.
-- **RTL Support:** Fully supports right-to-left languages (Arabic, Hebrew) rendering flawlessly in the terminal.
+- **RTL Support:** Full terminal support for right-to-left languages (Arabic, Hebrew).
+- **Zero Config:** Automatically installs required dependencies on any system, including Android's Termux.
 
----
+## How to Run (One Command)
+Run this command in your terminal to instantly download and launch the bot:
 
-## > How to Run?
-
-Copy and paste the command for your operating system to instantly download and run the script.
-
-**Windows (Command Prompt / CMD):**
-```cmd
-curl -O https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/google_forms_bot.py && python google_forms_bot.py
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/src/google_forms_bot.py -OutFile google_forms_bot.py ; python google_forms_bot.py
 ```
 
-**Linux / macOS / Termux (Android):**
+**Windows (CMD) / Linux / macOS / Termux:**
 ```bash
-curl -sO https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/google_forms_bot.py && python3 google_forms_bot.py
+curl -O https://raw.githubusercontent.com/Maronus/Google-Forms-Automation-Bot/main/src/google_forms_bot.py && python google_forms_bot.py
 ```
 
-After it launches, just paste your **public** Google Form URL and follow the CLI instructions!
-
----
-
-## > For Developers
-
-If you want to view the source code, I have included it in this repository as `google_forms_bot_source.py`.
-
-If you want to make your own edits and build a new encrypted payload:
-```bash
-python build_encrypted.py
-```
-This will compile `google_forms_bot_source.py` into `google_forms_bot.py`.
-
----
-
-## > Disclaimer
-This script is intended for educational purposes only. Do not use it to spam or abuse services.
+*(Note: The downloadable script is encrypted to prevent resale by third parties. The full source code is available in the `src/` folder for developers).*
