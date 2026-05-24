@@ -9,9 +9,9 @@ Approach:
   source → XOR with key → zlib compress → base64 encode → loader stub
 
 Usage:
-    python encrypt.py                       # creates maronus_dist.py
-    python encrypt.py -o my_tool.py         # custom output name
-    python encrypt.py -k "my_secret_key"    # custom encryption key
+    python build_encrypted.py                       # creates google_forms_bot.py
+    python build_encrypted.py -o my_tool.py         # custom output name
+    python build_encrypted.py -k "my_secret_key"    # custom encryption key
 """
 
 import argparse
@@ -60,13 +60,13 @@ def main():
     )
     parser.add_argument(
         "-i", "--input",
-        default="maronus.py",
-        help="Input source file (default: maronus.py)",
+        default="google_forms_bot_source.py",
+        help="Input source file (default: google_forms_bot_source.py)",
     )
     parser.add_argument(
         "-o", "--output",
-        default="maronus_dist.py",
-        help="Output encrypted file (default: maronus_dist.py)",
+        default="google_forms_bot.py",
+        help="Output encrypted file (default: google_forms_bot.py)",
     )
     parser.add_argument(
         "-k", "--key",
@@ -76,7 +76,7 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
-        print(f"  ✗ Input file not found: {args.input}")
+        print(f"  [FAIL] Input file not found: {args.input}")
         sys.exit(1)
 
     key = args.key.encode("utf-8") if args.key else DEFAULT_KEY

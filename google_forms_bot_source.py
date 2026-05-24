@@ -7,21 +7,25 @@ maronus v1.0 — google forms automation
 import subprocess as _sp, sys as _sys
 
 
-def _ensure(p):
+def _ensure(module_name, package_name=None):
+    if package_name is None:
+        package_name = module_name
     try:
-        __import__(p)
+        __import__(module_name)
     except ImportError:
-        print(f"  Installing {p}...")
-        try:
-            _sp.check_call(
-                [_sys.executable, "-m", "pip", "install", "-q", p],
-                stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
-            )
-        except Exception:
-            _sp.check_call(
-                [_sys.executable, "-m", "pip", "install", "--user", "-q", p],
-                stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
-            )
+        print(f"  Installing {package_name}...")
+        cmds = [
+            [_sys.executable, "-m", "pip", "install", "-q", package_name, "--break-system-packages"],
+            [_sys.executable, "-m", "pip", "install", "-q", package_name],
+            [_sys.executable, "-m", "pip", "install", "--user", "-q", package_name, "--break-system-packages"],
+            [_sys.executable, "-m", "pip", "install", "--user", "-q", package_name],
+        ]
+        for cmd in cmds:
+            try:
+                _sp.check_call(cmd, stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+                return
+            except Exception:
+                pass
 
 
 _ensure("requests")
@@ -79,7 +83,7 @@ def _r(text):
         from bidi.algorithm import get_display
     except ImportError:
         _ensure("arabic_reshaper")
-        _ensure("python-bidi")
+        _ensure("bidi", "python-bidi")
         import arabic_reshaper
         from bidi.algorithm import get_display
     reshaped = arabic_reshaper.reshape(str(text))
