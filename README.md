@@ -16,6 +16,9 @@ I didn't want any of my colleagues to take the source code, monetize the script,
 ## Features
 
 - **Linked Distribution System:** Creates virtual "users" who maintain coherent answers across multiple questions, ensuring no contradictory responses (e.g. someone saying they don't exercise, but then saying they exercise daily).
+
+  ![Linked Distribution System Visualization](linked_distribution.gif)
+
 - **Customizable Randomness:** After all virtual users are built, the script shuffles the submission order so that the timestamps and response patterns look entirely human.
 - **Smart Timers:** Supports regular or irregular delay timers between responses to bypass rate limits and mimic real human typing speeds.
 - **RTL Support:** Fully supports right-to-left languages (Arabic, Hebrew) rendering flawlessly in the terminal.
