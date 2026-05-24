@@ -53,7 +53,8 @@ if sys.platform == "win32":
         pass
 
 import requests
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.text import Text
 from rich.progress import (
     Progress,
@@ -80,9 +81,12 @@ def _getch():
             ch2 = msvcrt.getch()
             if ch2 == b'H': return 'up'
             if ch2 == b'P': return 'down'
+            if ch2 == b'K': return 'left'
+            if ch2 == b'M': return 'right'
             return None
         if ch == b'\r': return 'enter'
         if ch == b'\x08': return 'backspace'
+        if ch == b'\x1b': return 'esc'
         if ch == b'\x03': sys.exit(0)
         try:
             return ch.decode('utf-8')
@@ -90,17 +94,25 @@ def _getch():
             return None
     else:
         import tty, termios
+        import select
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
             tty.setraw(sys.stdin.fileno())
             ch = sys.stdin.read(1)
             if ch == '\x1b':
-                ch2 = sys.stdin.read(1)
-                if ch2 == '[':
-                    ch3 = sys.stdin.read(1)
-                    if ch3 == 'A': return 'up'
-                    if ch3 == 'B': return 'down'
+                # check if there's more data (to distinguish esc from arrow keys)
+                dr, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if dr:
+                    ch2 = sys.stdin.read(1)
+                    if ch2 == '[':
+                        ch3 = sys.stdin.read(1)
+                        if ch3 == 'A': return 'up'
+                        if ch3 == 'B': return 'down'
+                        if ch3 == 'C': return 'right'
+                        if ch3 == 'D': return 'left'
+                else:
+                    return 'esc'
             if ch == '\r': return 'enter'
             if ch == '\x7f' or ch == '\x08': return 'backspace'
             if ch == '\x03': sys.exit(0)
@@ -533,95 +545,234 @@ def _show_options(options):
     console.print()
 
 
-def _manual_split(options, total):
+def _interactive_menu(options, total, qi):
     dist = {}
     remaining = total
-    available_options = list(options)
     
-    while remaining > 0 and available_options:
-        if len(available_options) == 1:
-            opt = available_options[0]
-            dist[opt] = remaining
-            t = Text()
-            t.append("  > ", style=f"bold {BLUE}")
-            t.append(f"{_r(opt)} : {remaining} (remainder)", style="white")
-            console.print(t)
-            break
-
-        selected_idx = 0
-        typing_mode = False
-        typed_text = ""
-        lines_drawn = 0
-
-        while True:
-            out = Text()
-            out.append(f"\n  Select an answer to distribute ({remaining} users remaining):\n", style=f"bold {BLUE}")
-            for i, opt in enumerate(available_options):
-                if i == selected_idx:
-                    if typing_mode:
-                        out.append(f"  > {_r(opt)}  -- how many? {typed_text}_\n", style=f"bold {GREEN}")
-                    else:
-                        out.append(f"  > {_r(opt)}\n", style=f"bold {GREEN}")
-                else:
-                    out.append(f"    {_r(opt)}\n", style="white")
-
-            if lines_drawn > 0:
-                sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
-                sys.stdout.flush()
-
-            lines_drawn = out.plain.count("\n")
-            console.print(out, end="")
-
-            key = _getch()
-            if not key:
-                continue
-
-            if not typing_mode:
-                if key == 'up':
-                    selected_idx = max(0, selected_idx - 1)
-                elif key == 'down':
-                    selected_idx = min(len(available_options) - 1, selected_idx + 1)
-                elif key == 'enter':
-                    typing_mode = True
-                    typed_text = ""
+    nav_next = "[Next Question]"
+    nav_prev = "[Previous Question]"
+    
+    selected_idx = 0
+    typing_mode = False
+    typed_text = ""
+    lines_drawn = 0
+    
+    while True:
+        menu_items = list(options) + [nav_next, nav_prev]
+        
+        out = Text()
+        out.append(f"\n  Select an answer to distribute ({remaining} users remaining):\n", style=f"bold {BLUE}")
+        
+        for i, opt in enumerate(menu_items):
+            is_nav = (opt in (nav_next, nav_prev))
+            can_select_prev = (qi > 1)
+            can_select_next = (remaining == 0)
+            
+            if opt == nav_next and not can_select_next:
+                style = "dim"
+            elif opt == nav_prev and not can_select_prev:
+                style = "dim"
             else:
-                if key == 'enter':
-                    if typed_text.lower() == 'all':
-                        count = remaining
-                    else:
-                        try:
-                            count = int(typed_text)
-                        except ValueError:
-                            count = -1
-
-                    if 0 <= count <= remaining:
-                        opt = available_options[selected_idx]
-                        dist[opt] = count
-                        remaining -= count
-
+                style = f"bold {GREEN}" if i == selected_idx else "white"
+                
+            prefix = "  > " if i == selected_idx else "    "
+            
+            if not is_nav:
+                count_val = dist.get(opt, 0)
+                count_str = f" : {count_val}" if count_val > 0 else ""
+                if i == selected_idx and typing_mode:
+                    out.append(f"{prefix}{_r(opt)}{count_str}  -- how many? {typed_text}_\n", style=f"bold {GREEN}")
+                else:
+                    out.append(f"{prefix}{_r(opt)}{count_str}\n", style=style)
+            else:
+                if opt == nav_next:
+                    out.append("\n")
+                out.append(f"{prefix}{opt}\n", style=style)
+                
+        if lines_drawn > 0:
+            sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
+            sys.stdout.flush()
+            
+        lines_drawn = out.plain.count("\n")
+        console.print(out, end="")
+        
+        key = _getch()
+        if not key:
+            continue
+            
+        if not typing_mode:
+            if key == 'up':
+                selected_idx = max(0, selected_idx - 1)
+            elif key == 'down':
+                selected_idx = min(len(menu_items) - 1, selected_idx + 1)
+            elif key == 'enter':
+                opt = menu_items[selected_idx]
+                if opt == nav_prev:
+                    if qi > 1:
                         sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
                         sys.stdout.flush()
+                        return dist, "prev"
+                elif opt == nav_next:
+                    if remaining == 0:
+                        sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
+                        sys.stdout.flush()
+                        return dist, "next"
+                else:
+                    typing_mode = True
+                    typed_text = ""
+                    # Refund previous allocation
+                    prev_count = dist.get(opt, 0)
+                    if prev_count > 0:
+                        dist[opt] = 0
+                        remaining += prev_count
+        else:
+            if key == 'enter':
+                opt = menu_items[selected_idx]
+                if typed_text.lower() == 'all':
+                    count = remaining
+                else:
+                    try:
+                        count = int(typed_text)
+                    except ValueError:
+                        count = -1
+                        
+                if 0 <= count <= remaining:
+                    dist[opt] = count
+                    remaining -= count
+                    typing_mode = False
+                else:
+                    typed_text = ""
+            elif key == 'backspace':
+                typed_text = typed_text[:-1]
+            elif len(key) == 1 and key.isprintable():
+                typed_text += key
 
-                        t = Text()
-                        t.append("  > ", style=f"bold {BLUE}")
-                        t.append(f"{_r(opt)} : {count}", style="white")
-                        console.print(t)
-                        available_options.pop(selected_idx)
-                        if selected_idx >= len(available_options) and available_options:
-                            selected_idx = len(available_options) - 1
-                        break
-                    else:
-                        typed_text = ""
-                elif key == 'backspace':
-                    typed_text = typed_text[:-1]
-                elif len(key) == 1 and key.isprintable():
-                    typed_text += key
-
-    for opt in options:
-        if opt not in dist:
-            dist[opt] = 0
-
-    return dist
+def _interactive_text_menu(total, qi):
+    dist = {}
+    remaining = total
+    
+    options = []
+    
+    nav_add = "[Add New Answer]"
+    nav_next = "[Next Question]"
+    nav_prev = "[Previous Question]"
+    
+    selected_idx = 0
+    typing_mode = False
+    adding_mode = False
+    typed_text = ""
+    lines_drawn = 0
+    
+    while True:
+        menu_items = list(options) + [nav_add, nav_next, nav_prev]
+        
+        out = Text()
+        out.append(f"\n  Distribute text answers ({remaining} users remaining):\n", style=f"bold {BLUE}")
+        
+        for i, opt in enumerate(menu_items):
+            is_nav = (opt in (nav_add, nav_next, nav_prev))
+            can_select_prev = (qi > 1)
+            can_select_next = (remaining == 0)
+            
+            if opt == nav_next and not can_select_next:
+                style = "dim"
+            elif opt == nav_prev and not can_select_prev:
+                style = "dim"
+            else:
+                style = f"bold {GREEN}" if i == selected_idx else "white"
+                
+            prefix = "  > " if i == selected_idx else "    "
+            
+            if not is_nav:
+                count_val = dist.get(opt, 0)
+                count_str = f" : {count_val}" if count_val > 0 else ""
+                if i == selected_idx and typing_mode and not adding_mode:
+                    out.append(f"{prefix}{_r(opt)}{count_str}  -- how many? {typed_text}_\n", style=f"bold {GREEN}")
+                else:
+                    out.append(f"{prefix}{_r(opt)}{count_str}\n", style=style)
+            else:
+                if opt == nav_add:
+                    out.append("\n")
+                    if i == selected_idx and adding_mode:
+                        out.append(f"{prefix}Type new answer: {typed_text}_\n", style=f"bold {GREEN}")
+                        continue
+                if opt == nav_next:
+                    out.append("\n")
+                out.append(f"{prefix}{opt}\n", style=style)
+                
+        if lines_drawn > 0:
+            sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
+            sys.stdout.flush()
+            
+        lines_drawn = out.plain.count("\n")
+        console.print(out, end="")
+        
+        key = _getch()
+        if not key: continue
+        
+        if not typing_mode and not adding_mode:
+            if key == 'up':
+                selected_idx = max(0, selected_idx - 1)
+            elif key == 'down':
+                selected_idx = min(len(menu_items) - 1, selected_idx + 1)
+            elif key == 'enter':
+                opt = menu_items[selected_idx]
+                if opt == nav_prev:
+                    if qi > 1:
+                        sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
+                        sys.stdout.flush()
+                        return dist, "prev"
+                elif opt == nav_next:
+                    if remaining == 0:
+                        sys.stdout.write(f"\033[{lines_drawn}A\r\033[J")
+                        sys.stdout.flush()
+                        return dist, "next"
+                elif opt == nav_add:
+                    adding_mode = True
+                    typed_text = ""
+                else:
+                    typing_mode = True
+                    typed_text = ""
+                    prev_count = dist.get(opt, 0)
+                    if prev_count > 0:
+                        dist[opt] = 0
+                        remaining += prev_count
+        elif adding_mode:
+            if key == 'enter':
+                if typed_text.strip():
+                    options.append(typed_text.strip())
+                    selected_idx = len(options) - 1
+                    adding_mode = False
+                    # auto enter typing mode for the new option
+                    typing_mode = True
+                    typed_text = ""
+                else:
+                    adding_mode = False
+            elif key == 'backspace':
+                typed_text = typed_text[:-1]
+            elif len(key) == 1 and key.isprintable():
+                typed_text += key
+        elif typing_mode:
+            if key == 'enter':
+                opt = menu_items[selected_idx]
+                if typed_text.lower() == 'all':
+                    count = remaining
+                else:
+                    try:
+                        count = int(typed_text)
+                    except ValueError:
+                        count = -1
+                        
+                if 0 <= count <= remaining:
+                    dist[opt] = count
+                    remaining -= count
+                    typing_mode = False
+                else:
+                    typed_text = ""
+            elif key == 'backspace':
+                typed_text = typed_text[:-1]
+            elif len(key) == 1 and key.isprintable():
+                typed_text += key
 
 # ─── Live Table Rendering ─────────────────────────────────────────────
 
@@ -635,48 +786,81 @@ def _trunc(text, maxlen=18):
     return s
 
 
-def print_live_table(total, answer_lists, form):
+def generate_table(total, form, answer_lists=None, response_sets=None, statuses=None):
     import shutil
     w, _ = shutil.get_terminal_size()
     if w < 90:
-        return
+        return None
 
-    # Calculate max cell width based on terminal width and number of columns
-    num_cols = sum(1 for q in form["questions"] if str(q["id"]) in answer_lists)
+    num_cols = 0
+    if answer_lists:
+        num_cols = sum(1 for q in form["questions"] if str(q["id"]) in answer_lists)
+    elif response_sets and len(response_sets) > 0:
+        num_cols = len(response_sets[0])
+        
     if num_cols == 0:
         num_cols = 1
-    cell_max = max(10, min(22, (w - 12) // (num_cols + 1)))
+        
+    # leave room for user column and status column
+    extra_cols_width = 12
+    if statuses:
+        extra_cols_width += 8
+        
+    cell_max = max(8, min(22, (w - extra_cols_width) // (num_cols + 1)))
 
     table = Table(show_header=True, header_style=f"bold {BLUE}", border_style=DIM, padding=(0, 1))
     table.add_column("User", style=f"bold {BLUE}", width=8, no_wrap=True)
 
-    # Columns left-to-right in question order
+    # Calculate valid columns to show
+    col_qids = []
     for q in form["questions"]:
         qid = str(q["id"])
-        if qid in answer_lists:
+        if (answer_lists and qid in answer_lists) or (response_sets and any(qid in s for s in response_sets)):
+            col_qids.append(qid)
             title_str = str(q.get('title', ''))
             short_title = _trunc(title_str, cell_max)
             table.add_column(short_title, style="white", max_width=cell_max, no_wrap=True)
 
-    if not answer_lists:
-        table.add_column("Status", style="white")
+    if statuses is not None:
+        table.add_column("Status", style="bold white", width=6, no_wrap=True)
+
+    if not col_qids:
+        if statuses is None:
+            table.add_column("Status", style="white")
         for i in range(total):
-            table.add_row(f"User {i+1}", "...")
+            row = [f"User {i+1}"]
+            if statuses is None:
+                row.append("...")
+            else:
+                row.append(statuses[i])
+            table.add_row(*row)
     else:
         for i in range(total):
             row = [f"User {i+1}"]
-            for q in form["questions"]:
-                qid = str(q["id"])
-                if qid in answer_lists:
-                    ans = answer_lists[qid][i]
-                    if ans:
-                        row.append(_trunc(str(ans), cell_max))
-                    else:
-                        row.append("-")
+            for qid in col_qids:
+                if answer_lists:
+                    ans = answer_lists[qid][i] if i < len(answer_lists[qid]) else None
+                elif response_sets:
+                    ans = response_sets[i].get(qid, None)
+                
+                if ans:
+                    row.append(_trunc(str(ans), cell_max))
+                else:
+                    row.append("-")
+                    
+            if statuses is not None:
+                row.append(statuses[i])
+                
             table.add_row(*row)
 
-    console.print(table)
-    console.print()
+    return table
+
+
+def print_live_table(total, answer_lists, form):
+    table = generate_table(total, form, answer_lists=answer_lists)
+    if table:
+        console.print(table)
+        console.print()
 
 
 def _animate_shuffle(total, answer_lists, form):
@@ -703,24 +887,20 @@ def _animate_shuffle(total, answer_lists, form):
 
 
 def build_answers(form, total):
-    """Walk through every question and build ordered answer lists.
-
-    Choice questions  → manual split (assign counts to each option).
-    Text questions    → every response written individually.
-
-    Returns answer_lists: dict mapping q_id → list of N answers (None = skipped).
-    """
+    """State machine to walk through questions and allow going backwards."""
     answer_lists = {}
     total_q = len(form["questions"])
-
-    for qi, q in enumerate(form["questions"], 1):
+    qi = 1
+    
+    while qi <= total_q:
+        q = form["questions"][qi - 1]
+        
         clear()
         display_banner()
         print_live_table(total, answer_lists, form)
         
         section(f"Question {qi} of {total_q}")
 
-        # Header
         t = Text()
         t.append(f"  Q{qi}/{total_q}  ", style=f"bold {BLUE}")
         t.append(_r(q["title"]), style="bold white")
@@ -737,64 +917,44 @@ def build_answers(form, total):
         console.print()
 
         q_id = str(q["id"])
+        action = "next"
 
-        # ── Text questions: individual answers ──
         if q["type"] in ("paragraph", "short_answer"):
-            answers = [None] * total
+            dist, action = _interactive_text_menu(total, qi)
+        else:
+            options = _get_options_for_q(q)
+            if not options:
+                msg("Enter possible answers, one per line. Empty to finish.", "info")
+                options = []
+                while True:
+                    val = ask(f"Answer {len(options) + 1}")
+                    if not val:
+                        if not options:
+                            msg("Must enter at least one", "warn")
+                            continue
+                        break
+                    options.append(val)
             
-            write_count = total
-            if not q["required"]:
-                write_count = ask_int(f"How many responses for this question? (0-{total})", min_val=0, max_val=total)
-            
-            if write_count > 0:
-                console.print()
-                for i in range(write_count):
-                    val = ask(f"Response {i + 1}/{write_count}")
-                    while not val and q["required"]:
-                        msg("Cannot be empty", "warn")
-                        val = ask(f"Response {i + 1}/{write_count}")
-                    answers[i] = val if val else ""
-            
-            answer_lists[q_id] = answers
-            msg(f"  {write_count} answers recorded", "ok")
+            dist, action = _interactive_menu(options, total, qi)
+
+        if action == "prev":
+            # clear current answer logic to go backwards smoothly
+            if q_id in answer_lists:
+                del answer_lists[q_id]
+            qi -= 1
             continue
-
-        # ── Optional: skip entirely ──
-        if not q["required"]:
-            skip = ask_yn("Skip this question?", default=False)
-            if skip:
-                msg("Skipped", "info")
-                continue
-
-        # ── Choice questions: interactive menu ──
-        options = _get_options_for_q(q)
-        if not options:
-            msg("Enter possible answers, one per line. Empty to finish.", "info")
-            options = []
-            while True:
-                val = ask(f"Answer {len(options) + 1}")
-                if not val:
-                    if not options:
-                        msg("Must enter at least one", "warn")
-                        continue
-                    break
-                options.append(val)
-
-        if not options:
-            msg("No options, skipping", "warn")
-            continue
-
-        dist = _manual_split(options, total)
-
-        # Expand distribution to ordered answer list
+            
+        # action == "next"
+        # Expand distribution
         answers = []
         for answer, count in dist.items():
             answers.extend([answer] * count)
         while len(answers) < total:
-            answers.append(list(dist.keys())[-1])
+            answers.append(None)
         answers = answers[:total]
 
         answer_lists[q_id] = answers
+        qi += 1
 
     return answer_lists
 
@@ -823,6 +983,11 @@ def configure_timer(total):
     console.print()
     timer_type = ask_choice("Timer type", ["Regular", "Irregular"])
 
+    console.print()
+    unit = ask_choice("Timer unit", ["Seconds", "Minutes"])
+    unit_str = "seconds" if unit == "S" else "minutes"
+    mult = 1.0 if unit == "S" else 60.0
+
     config = {
         "irregular": timer_type == "I",
         "delay_seconds": 0,
@@ -832,16 +997,16 @@ def configure_timer(total):
 
     console.print()
     if timer_type == "R":
-        delay = ask_float("Delay between responses (seconds)", min_val=0.5)
-        config["delay_seconds"] = delay
-        config["min_seconds"] = delay
-        config["max_seconds"] = delay
+        delay = ask_float(f"Delay between responses ({unit_str})", min_val=0.5 if unit == "S" else 0.01)
+        config["delay_seconds"] = delay * mult
+        config["min_seconds"] = delay * mult
+        config["max_seconds"] = delay * mult
     else:
-        min_d = ask_float("Min delay between responses (seconds)", min_val=0.5)
-        max_d = ask_float("Max delay between responses (seconds)", min_val=min_d)
-        config["min_seconds"] = min_d
-        config["max_seconds"] = max_d
-        config["delay_seconds"] = (min_d + max_d) / 2
+        min_d = ask_float(f"Min delay between responses ({unit_str})", min_val=0.5 if unit == "S" else 0.01)
+        max_d = ask_float(f"Max delay between responses ({unit_str})", min_val=min_d)
+        config["min_seconds"] = min_d * mult
+        config["max_seconds"] = max_d * mult
+        config["delay_seconds"] = ((min_d + max_d) / 2) * mult
 
     return config
 
@@ -857,7 +1022,7 @@ def _get_delay(cfg):
 # ─── Pre-Submission Summary ──────────────────────────────────────────
 
 
-def show_pre_summary(form, answer_lists, total, timer_config):
+def show_pre_summary(form, response_sets, total, timer_config):
     clear()
     display_banner()
 
@@ -867,8 +1032,11 @@ def show_pre_summary(form, answer_lists, total, timer_config):
     msg(f"Submits:    {total}", "info")
     console.print()
 
-    # Show the table as the summary
-    print_live_table(total, answer_lists, form)
+    # Show the table as the summary (now displaying response_sets instead of flat lists)
+    table = generate_table(total, form, response_sets=response_sets)
+    if table:
+        console.print(table)
+        console.print()
 
     if timer_config:
         if timer_config["irregular"]:
@@ -878,7 +1046,131 @@ def show_pre_summary(form, answer_lists, total, timer_config):
         msg(f"Timer: {td}", "info")
     else:
         msg("Timer: off (all at once)", "info")
+        
+    console.print()
+    action = ask_choice("Proceed?", ["Submit", "Edit answers in Advanced Table Editor"])
+    return action
 
+
+def advanced_table_editor(form, response_sets, total):
+    import shutil
+    selected_row = 0
+    selected_col = 0
+    
+    qids = []
+    titles = []
+    q_options = {}
+    
+    for q in form["questions"]:
+        qid = str(q["id"])
+        if any(qid in s for s in response_sets):
+            qids.append(qid)
+            titles.append(_trunc(str(q.get('title', '')), 20))
+            
+            if q["type"] in ("paragraph", "short_answer"):
+                opts = list(set([str(s.get(qid, '')) for s in response_sets if qid in s and s[qid]]))
+                q_options[qid] = opts
+            else:
+                opts = _get_options_for_q(q)
+                if not opts:
+                    opts = list(set([str(s.get(qid, '')) for s in response_sets if qid in s and s[qid]]))
+                q_options[qid] = opts
+
+    num_rows = total
+    num_cols = len(qids)
+    
+    popup_mode = False
+    popup_options = []
+    popup_selected = 0
+    
+    while True:
+        w, h = shutil.get_terminal_size()
+        
+        max_rows_vis = max(5, h - 15)
+        max_cols_vis = max(1, (w - 15) // 22)
+        
+        row_start = max(0, min(selected_row - max_rows_vis // 2, num_rows - max_rows_vis))
+        if row_start < 0: row_start = 0
+        row_end = min(num_rows, row_start + max_rows_vis)
+        
+        col_start = max(0, min(selected_col - max_cols_vis // 2, num_cols - max_cols_vis))
+        if col_start < 0: col_start = 0
+        col_end = min(num_cols, col_start + max_cols_vis)
+        
+        table = Table(show_header=True, header_style=f"bold {BLUE}", border_style=DIM, padding=(0, 1))
+        table.add_column("User", style=f"bold {BLUE}", width=8, no_wrap=True)
+        
+        for c in range(col_start, col_end):
+            style = "bold white" if c == selected_col else "dim"
+            table.add_column(titles[c], style=style, max_width=22, no_wrap=True)
+            
+        for r in range(row_start, row_end):
+            row_data = [f"User {r+1}"]
+            for c in range(col_start, col_end):
+                qid = qids[c]
+                ans = response_sets[r].get(qid, None)
+                val = _trunc(str(ans) if ans else "-", 22)
+                
+                if r == selected_row and c == selected_col:
+                    val = f"[black on {GREEN}]{val}[/]"
+                    
+                row_data.append(val)
+            table.add_row(*row_data)
+            
+        clear()
+        display_banner()
+        console.print(Text("  Advanced Table Editor  ", style=f"bold black on {BLUE}"))
+        console.print("  Use [white]Arrow Keys[/] to move, [white]Enter[/] to edit, [white]Q/Esc[/] to save and exit.\n", style="dim")
+        console.print(table)
+        
+        if popup_mode:
+            qid = qids[selected_col]
+            console.print(f"\n  [bold {BLUE}]Edit User {selected_row+1}'s answer for: [white]{titles[selected_col]}[/][/]")
+            
+            for i, opt in enumerate(popup_options):
+                prefix = "  > " if i == popup_selected else "    "
+                style = f"bold {GREEN}" if i == popup_selected else "white"
+                console.print(f"{prefix}{_r(opt)}", style=style)
+                
+            console.print("\n  [dim](Use Up/Down to select, Enter to confirm)[/]")
+            
+        key = _getch()
+        if not key:
+            continue
+            
+        if popup_mode:
+            if key == 'up':
+                popup_selected = max(0, popup_selected - 1)
+            elif key == 'down':
+                popup_selected = min(len(popup_options) - 1, popup_selected + 1)
+            elif key in ('enter', 'q', 'esc'):
+                if key == 'enter' and popup_options:
+                    response_sets[selected_row][qids[selected_col]] = popup_options[popup_selected]
+                popup_mode = False
+        else:
+            if key == 'up':
+                selected_row = max(0, selected_row - 1)
+            elif key == 'down':
+                selected_row = min(num_rows - 1, selected_row + 1)
+            elif key == 'left':
+                selected_col = max(0, selected_col - 1)
+            elif key == 'right':
+                selected_col = min(num_cols - 1, selected_col + 1)
+            elif key == 'enter':
+                qid = qids[selected_col]
+                opts = q_options[qid]
+                if not opts:
+                    opts = ["-"]
+                popup_options = list(opts)
+                curr = response_sets[selected_row].get(qid)
+                popup_selected = 0
+                if curr in popup_options:
+                    popup_selected = popup_options.index(curr)
+                popup_mode = True
+            elif key in ('q', 'esc'):
+                break
+
+    return response_sets
 
 # ─── Submission Engine ───────────────────────────────────────────────
 
@@ -923,11 +1215,13 @@ def _submit_one(form, response):
 
 
 def submit_all(form, response_sets, timer_config):
-    """Submit all responses with progress bar and estimated time remaining."""
+    """Submit all responses with progress bar and live table updating."""
     total = len(response_sets)
     success = 0
     fail = 0
     start_time = time.time()
+    
+    statuses = ["..."] * total
 
     section("Submitting")
 
@@ -942,22 +1236,34 @@ def submit_all(form, response_sets, timer_config):
         msg(f"Estimated time: ~{est_total:.0f} seconds", "info")
     console.print()
 
-    with Progress(
+    progress = Progress(
         SpinnerColumn(style=BLUE),
         TextColumn("[bold white]{task.description}"),
         BarColumn(complete_style=BLUE, finished_style=GREEN),
         TaskProgressColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task("  Sending...", total=total)
+    )
+    task = progress.add_task("  Sending...", total=total)
+    
+    live_group = Group(
+        generate_table(total, form, response_sets=response_sets, statuses=statuses),
+        progress
+    )
 
+    with Live(live_group, console=console, refresh_per_second=10) as live:
         for i, resp in enumerate(response_sets):
+            statuses[i] = "[bold yellow]SEND"
+            live.update(Group(generate_table(total, form, response_sets=response_sets, statuses=statuses), progress))
+            
             ok, _ = _submit_one(form, resp)
             if ok:
                 success += 1
+                statuses[i] = f"[bold {GREEN}]✓ OK"
             else:
                 fail += 1
+                statuses[i] = f"[bold {RED}]x FAIL"
+                
             progress.advance(task)
+            live.update(Group(generate_table(total, form, response_sets=response_sets, statuses=statuses), progress))
 
             # Estimated time remaining
             elapsed = time.time() - start_time
@@ -972,8 +1278,9 @@ def submit_all(form, response_sets, timer_config):
 
             progress.update(
                 task,
-                description=f"  Sending ({success}+ {fail}x){est}",
+                description=f"  Sending ({success} OK, {fail} FAIL){est}",
             )
+            live.update(Group(generate_table(total, form, response_sets=response_sets, statuses=statuses), progress))
 
             # Timer delay
             if timer_config and (i + 1) < total:
@@ -984,10 +1291,12 @@ def submit_all(form, response_sets, timer_config):
                         task,
                         description=f"  Waiting {remaining:.0f}s...",
                     )
-                    step = min(1.0, remaining)
+                    live.update(Group(generate_table(total, form, response_sets=response_sets, statuses=statuses), progress))
+                    step = min(0.5, remaining)
                     time.sleep(step)
                     remaining -= step
                 progress.update(task, description="  Sending...")
+                live.update(Group(generate_table(total, form, response_sets=response_sets, statuses=statuses), progress))
 
     elapsed = time.time() - start_time
     return success, fail, elapsed
@@ -1058,16 +1367,21 @@ def main():
     # 7 — Timer
     timer_config = configure_timer(total)
 
-    # 8 — Pre-submission summary (table + info)
-    show_pre_summary(form, answer_lists, total, timer_config)
-
-    console.print()
-    if not ask_yn("Proceed with submission?", default=True):
-        msg("Cancelled", "warn")
-        return
-
-    # 9 — Generate linked sets & submit
+    # Generate linked sets before summary to show shuffled order
     response_sets = generate_linked_sets(answer_lists, total)
+
+    # 8 — Pre-submission summary (table + info)
+    while True:
+        action = show_pre_summary(form, response_sets, total, timer_config)
+        if action == "S":
+            break
+        elif action == "E":
+            response_sets = advanced_table_editor(form, response_sets, total)
+        else:
+            msg("Cancelled", "warn")
+            return
+
+    # 9 — Submit
     success, fail, elapsed = submit_all(form, response_sets, timer_config)
 
     # 9 — Results
