@@ -26,6 +26,11 @@ I didn't want any of my colleagues to take the source code, monetize the script,
   4. **The Final Shuffle:** Once all profiles are built, the script shuffles them like a deck of cards. 
   5. **Submission:** The responses are sent in this new randomized order so Google doesn't detect a sequential pattern.
 
+  **Why is this better than "Classic Random"?**
+  In a standard random bot, answers are mixed blindly per question. You might end up submitting a response where someone claims they are "Under 18" but hold a "PhD", or they "Don't Exercise" but work out "Daily". Google's algorithms (or the form owner) can easily spot these impossible contradictions and delete the responses. 
+  
+  Maronus' **Linked Distribution System** solves this by building consistent "Virtual User" profiles first, then shuffling the users themselves. Every submission is 100% logically flawless.
+
 - **Customizable Randomness:** After all virtual users are built, the script shuffles the submission order so that the timestamps and response patterns look entirely human.
 - **Smart Timers:** Supports regular or irregular delay timers between responses to bypass rate limits and mimic real human typing speeds.
 - **RTL Support:** Fully supports right-to-left languages (Arabic, Hebrew) rendering flawlessly in the terminal.

@@ -52,48 +52,47 @@ def create_frame(title, users, highlight_col=-1):
     return img
 
 frames = []
-durations = []
 
-def add_frame(img, duration_sec):
-    frames.append(img)
-    durations.append(duration_sec)
+def add_frames(img, count):
+    for _ in range(count):
+        frames.append(img)
 
 users = [{"user": f"User {i+1}", "q1": "", "q2": ""} for i in range(5)]
 
-# Step 1: Empty slots (hold for 5 seconds)
+# Step 1: Empty slots (hold for 6 seconds -> 12 frames @ 0.5s)
 img = create_frame("Step 1: Create Virtual Users", users)
-add_frame(img, 5.0)
+add_frames(img, 12)
 
-# Step 2: Fill Q1 linearly (1.5s per row)
+# Step 2: Fill Q1 linearly (2.0s per row -> 4 frames)
 q1_answers = ["Yes", "Yes", "Yes", "No", "No"]
 for i in range(5):
     users[i]['q1'] = q1_answers[i]
     img = create_frame("Step 2: Apply Answers for Question 1", users, 1)
-    add_frame(img, 1.5)
-# Hold after filling Q1
-add_frame(img, 4.0)
+    add_frames(img, 4)
+# Hold after filling Q1 (5 seconds -> 10 frames)
+add_frames(img, 10)
 
-# Step 3: Fill Q2 linearly (1.5s per row)
+# Step 3: Fill Q2 linearly (2.0s per row -> 4 frames)
 q2_answers = ["Daily", "Daily", "Daily", "Never", "Never"]
 for i in range(5):
     users[i]['q2'] = q2_answers[i]
     img = create_frame("Step 3: Apply Answers for Question 2", users, 2)
-    add_frame(img, 1.5)
-# Hold after filling Q2
-add_frame(img, 4.0)
+    add_frames(img, 4)
+# Hold after filling Q2 (5 seconds -> 10 frames)
+add_frames(img, 10)
 
-# Step 4: Shuffle (slower! 0.4s per frame)
+# Step 4: Shuffle (0.5s per frame -> 1 frame per swap)
 shuffled = users.copy()
-for i in range(10):
+for i in range(8):
     random.shuffle(shuffled)
     img = create_frame("Step 4: Shuffling to Randomize Patterns...", shuffled)
-    add_frame(img, 0.4)
+    add_frames(img, 1)
 
-# Step 5: Final (hold for 8 seconds before repeating)
+# Step 5: Final (hold for 10 seconds before repeating -> 20 frames)
 final_shuffled = [users[3], users[1], users[4], users[0], users[2]]
 img = create_frame("Step 5: Final Submission Order", final_shuffled)
-add_frame(img, 8.0)
+add_frames(img, 20)
 
-# Save with exact durations and infinite loop (loop=0)
-imageio.mimsave("linked_distribution.gif", frames, duration=durations, loop=0)
-print("Professional paced GIF created successfully.")
+# Save with a universal 0.5s duration per frame to guarantee viewer compatibility
+imageio.mimsave("linked_distribution.gif", frames, duration=0.5, loop=0)
+print("Ultra-slow paced GIF created successfully.")
