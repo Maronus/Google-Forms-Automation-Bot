@@ -59,6 +59,8 @@ from rich.progress import (
     Progress,
     BarColumn,
     TextColumn,
+    SpinnerColumn,
+    TaskProgressColumn,
 )
 from rich.table import Table
 from rich.columns import Columns
