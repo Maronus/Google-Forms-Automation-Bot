@@ -28,19 +28,20 @@ I didn't want any of my colleagues to take the source code, monetize the script,
 ### > Linked Distribution System
 Creates virtual "users" who maintain coherent answers across multiple questions, ensuring no contradictory responses (e.g., someone saying they don't exercise, but then saying they exercise daily).
 
-![Linked Distribution System Visualization](linked_distribution.gif)
+**1. How Maronus Builds Profiles:**
+The script reserves slots for the total number of responses you want. Answers are assigned top-to-bottom so User 1's profile stays perfectly consistent across every question.
+![Linked Profiles](linked_profiles.png)
 
-**How it works:**
-1. **Create Virtual Users:** The script reserves slots for the total number of responses you want.
-2. **Distribute Question 1:** Answers are assigned top-to-bottom.
-3. **Distribute Question 2:** The next set of answers aligns with the previous ones, so User 1's profile stays perfectly consistent.
-4. **The Final Shuffle:** Once all profiles are built, the script shuffles them like a deck of cards. 
-5. **Submission:** The responses are sent in this new randomized order so Google doesn't detect a sequential pattern.
+**2. The Final Submission (Shuffled):**
+Once all profiles are built, the script shuffles the users like a deck of cards. The responses are sent in this new randomized order so Google doesn't detect a sequential pattern, but every single profile remains logically flawless.
+![Linked Submissions](linked_submissions.png)
 
-> **Why is this better than "Classic Random Automtation Bots"?**
-> In a standard automation bot, answers are mixed blindly per question. You might end up submitting a response where someone claims they are "Under 18" but hold a "PhD", or they "Don't Exercise" but work out "Daily". the form owner can easily spot these contradictions. 
+> **Why is this better than "Classic Random Automation Bots"?**
+> In a standard automation bot, answers are mixed blindly per question. You might end up submitting a response where someone claims they are "Under 18" but hold a "PhD", or they "Don't Exercise" but work out "Daily". The form owner can easily spot these red contradictions and delete your submissions. 
 > 
-> Maronus' **Linked Distribution System** solves this by building consistent "Virtual User" profiles first, then shuffling the users themselves. Every submission is 100% logically flawless.
+> ![Classic Bot Errors](classic_bot.png)
+> 
+> Maronus' **Linked Distribution System** solves this entirely. Every submission is 100% logically flawless.
 
 - **Customizable Randomness:** After all virtual users are built, the script shuffles the submission order so that the timestamps and response patterns look entirely human.
 - **Human-like Delays:** Supports regular or irregular delay timers between responses.
