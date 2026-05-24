@@ -60,39 +60,39 @@ def add_frame(img, duration_sec):
 
 users = [{"user": f"User {i+1}", "q1": "", "q2": ""} for i in range(5)]
 
-# Step 1: Empty slots (hold for 3 seconds)
+# Step 1: Empty slots (hold for 5 seconds)
 img = create_frame("Step 1: Create Virtual Users", users)
-add_frame(img, 3.0)
+add_frame(img, 5.0)
 
-# Step 2: Fill Q1 linearly (0.8s per row)
+# Step 2: Fill Q1 linearly (1.5s per row)
 q1_answers = ["Yes", "Yes", "Yes", "No", "No"]
 for i in range(5):
     users[i]['q1'] = q1_answers[i]
     img = create_frame("Step 2: Apply Answers for Question 1", users, 1)
-    add_frame(img, 0.8)
+    add_frame(img, 1.5)
 # Hold after filling Q1
-add_frame(img, 3.0)
+add_frame(img, 4.0)
 
-# Step 3: Fill Q2 linearly (0.8s per row)
+# Step 3: Fill Q2 linearly (1.5s per row)
 q2_answers = ["Daily", "Daily", "Daily", "Never", "Never"]
 for i in range(5):
     users[i]['q2'] = q2_answers[i]
     img = create_frame("Step 3: Apply Answers for Question 2", users, 2)
-    add_frame(img, 0.8)
+    add_frame(img, 1.5)
 # Hold after filling Q2
-add_frame(img, 3.0)
+add_frame(img, 4.0)
 
-# Step 4: Shuffle (fast! 0.15s per frame)
+# Step 4: Shuffle (slower! 0.4s per frame)
 shuffled = users.copy()
-for i in range(12):
+for i in range(10):
     random.shuffle(shuffled)
     img = create_frame("Step 4: Shuffling to Randomize Patterns...", shuffled)
-    add_frame(img, 0.15)
+    add_frame(img, 0.4)
 
-# Step 5: Final (hold for 6 seconds before repeating)
+# Step 5: Final (hold for 8 seconds before repeating)
 final_shuffled = [users[3], users[1], users[4], users[0], users[2]]
 img = create_frame("Step 5: Final Submission Order", final_shuffled)
-add_frame(img, 6.0)
+add_frame(img, 8.0)
 
 # Save with exact durations and infinite loop (loop=0)
 imageio.mimsave("linked_distribution.gif", frames, duration=durations, loop=0)
